@@ -1,10 +1,13 @@
 #include <windows.h>
 #include <d3d11.h>
+
+#pragma comment(lib, "dxgi.lib")
 HWND	GNativeWindow;
 
 IDXGISwapChain*			GSwapChain;
 ID3D11Device*			GRenderDevice = nullptr;
 ID3D11DeviceContext*	gDeviceContext;
+ID3D11RenderTargetView*	GRTV = nullptr;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -51,21 +54,21 @@ bool InitRenderDevice()
 
 	int flags = D3D11_CREATE_DEVICE_DEBUG;
 
-	IDXGIFactory1* DXGIFactory1 = nullptr;
-	CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)DXGIFactory1);
+	//IDXGIFactory1* DXGIFactory1 = nullptr;
+	//CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)DXGIFactory1);
 
-	HRESULT HResult = S_OK;
-	IDXGIAdapter* Adapter;
-	HResult = DXGIFactory1->EnumAdapters(0, &Adapter);
+	//HRESULT HResult = S_OK;
+	//IDXGIAdapter* Adapter;
+	//HResult = DXGIFactory1->EnumAdapters(0, &Adapter);
 
-	DXGI_ADAPTER_DESC AdapterDesc;
-	if (FAILED(Adapter->GetDesc(&AdapterDesc)))
-		return false;
+	//DXGI_ADAPTER_DESC AdapterDesc;
+	//if (FAILED(Adapter->GetDesc(&AdapterDesc)))
+	//	return false;
 
 	D3D_FEATURE_LEVEL FeatureLevel;
 	D3D_FEATURE_LEVEL ActualFeatureLevel = (D3D_FEATURE_LEVEL)0;
 	D3D11CreateDevice(
-		Adapter,
+		0,
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL,
 		flags,
@@ -79,6 +82,34 @@ bool InitRenderDevice()
 
 	if (FeatureLevel != ActualFeatureLevel)
 		return false;
+
+	RECT rect;
+	::GetClientRect(GNativeWindow, &rect);
+	DXGI_SWAP_CHAIN_DESC sd = { 0 };
+	sd.BufferCount = 1;
+	sd.BufferDesc.Width = rect.right - rect.left;
+	sd.BufferDesc.Height = rect.bottom - rect.top;
+	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	sd.BufferDesc.RefreshRate.Numerator = 60;
+	sd.BufferDesc.RefreshRate.Denominator = 1;
+	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	sd.OutputWindow = (HWND)window;
+	sd.SampleDesc.Count = 1;
+	sd.SampleDesc.Quality = 0;
+	sd.Windowed = true;
+
+	//if (factory->CreateSwapChain((ID3D11Device*)mD3DDevice, &sd, (IDXGISwapChain**)&mDefaultSwapChain) != 0)
+	//	return _false;
+
+	ID3D11Texture2D* buffer = nullptr;
+	if (g->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&buffer) != 0)
+		return false;
+
+	ID3D11RenderTargetView* rtv = nullptr;
+	if (GRenderDevice->CreateRenderTargetView(buffer, nullptr, &rtv) != 0)
+		return false;
+
+	GRTV = rtv;
 
 	return true;
 }
@@ -100,6 +131,11 @@ int main()
 		}
 		else
 		{
+			float color[4] = { 0.3f, 0.3f, 0.3f, 1.0f };
+			gDeviceContext->ClearRenderTargetView(GRTV, color);
+
+			GSwapChain->Present(0, 0);
+
 			Sleep(30);
 		}
 	}
