@@ -1,18 +1,30 @@
 #include <windows.h>
+#include <vector>
+#include <algorithm>
 #include "d3d11.h"
 
 #pragma comment(lib, "dxgi.lib")
 HWND	GNativeWindow;
+HWND	GWindow2;
 
-IDXGISwapChain*			GSwapChain;
+std::vector<HWND>	GWindows;
+
+IDXGIFactory1*			GDXGIFactory = nullptr;
 ID3D11Device*			GRenderDevice = nullptr;
 ID3D11DeviceContext*	gDeviceContext;
-ID3D11RenderTargetView*	GRTV = nullptr;
+
+IDXGISwapChain*			GNativeSwapChain;
+IDXGISwapChain*			GSwapChain2;
+ID3D11RenderTargetView*	GRTV1 = nullptr;
+ID3D11RenderTargetView*	GRTV2 = nullptr;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	if (msg == WM_CLOSE)
+	{
 		PostQuitMessage(0);
+		GWindows.erase(find(GWindows.begin(), GWindows.end(), hwnd));
+	}
 
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
@@ -53,12 +65,11 @@ bool InitRenderDevice()
 		return true;
 
 	int flags = D3D11_CREATE_DEVICE_DEBUG;
-	IDXGIFactory1* DXGIFactory1 = nullptr;
-	HRESULT result = CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&DXGIFactory1);
+	HRESULT result = CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&GDXGIFactory);
 
 	HRESULT HResult = S_OK;
 	IDXGIAdapter* Adapter;
-	HResult = DXGIFactory1->EnumAdapters(0, &Adapter);
+	HResult = GDXGIFactory->EnumAdapters(0, &Adapter);
 
 	DXGI_ADAPTER_DESC AdapterDesc;
 	if (FAILED(Adapter->GetDesc(&AdapterDesc)))
@@ -82,8 +93,14 @@ bool InitRenderDevice()
 	if (FeatureLevel != ActualFeatureLevel)
 		return false;
 
+	return true;
+}
+
+bool CreateBackBuffer(HWND window, IDXGISwapChain*& swapchain, ID3D11RenderTargetView*& rtv)
+{
+	// Create Swap Chain.
 	RECT rect;
-	::GetClientRect(GNativeWindow, &rect);
+	::GetClientRect(window, &rect);
 	DXGI_SWAP_CHAIN_DESC sd = { 0 };
 	sd.BufferCount = 1;
 	sd.BufferDesc.Width = rect.right - rect.left;
@@ -92,38 +109,45 @@ bool InitRenderDevice()
 	sd.BufferDesc.RefreshRate.Denominator = 0;
 	sd.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.OutputWindow = (HWND)GNativeWindow;
+	sd.OutputWindow = (HWND)window;
 	sd.SampleDesc.Count = 1;
 	sd.SampleDesc.Quality = 0;
 	sd.Windowed = true;
 
-	if (DXGIFactory1->CreateSwapChain(GRenderDevice, &sd, (IDXGISwapChain**)&GSwapChain) != 0)
+	if (GDXGIFactory->CreateSwapChain(GRenderDevice, &sd, (IDXGISwapChain**)&swapchain) != 0)
 		return false;
 
 	ID3D11Texture2D* buffer = nullptr;
-	if (GSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&buffer) != 0)
+	if (swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&buffer) != 0)
 		return false;
 
-	ID3D11RenderTargetView* rtv = nullptr;
 	if (GRenderDevice->CreateRenderTargetView(buffer, nullptr, &rtv) != 0)
 		return false;
 
-	GRTV = rtv;
-
-	return true;
 }
 
 int main()
 {
 	GNativeWindow = CreateMyWindow(900, 600, L"Hello world");
 	InitRenderDevice();
+	CreateBackBuffer(GNativeWindow, GNativeSwapChain, GRTV1);
+
+	GWindow2 = CreateMyWindow(400, 300, L"Window2");
+	CreateBackBuffer(GWindow2, GSwapChain2, GRTV2);
+
+	GWindows.push_back(GNativeWindow);
+	GWindows.push_back(GWindow2);
+
 	MSG msg = { 0 };
 	while (true)
 	{
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		{
 			if (msg.message == WM_QUIT)
-				break;
+			{
+				if (GWindows.empty())
+					break;
+			}
 
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
@@ -131,12 +155,19 @@ int main()
 		else
 		{
 			float color[4] = { 0.3f, 0.3f, 1.0f, 1.0f };
-			gDeviceContext->ClearRenderTargetView(GRTV, color);
+			gDeviceContext->ClearRenderTargetView(GRTV1, color);
+			GNativeSwapChain->Present(0, 0);
 
-			GSwapChain->Present(0, 0);
+			color[0] = 1.0f;
+			color[2] = 0.3f;
+			gDeviceContext->ClearRenderTargetView(GRTV2, color);
+			GSwapChain2->Present(0, 0);
 
 			Sleep(30);
 		}
 	}
+
+	// TODO. ReleaseContext.
+
 	system("pause");
 }
