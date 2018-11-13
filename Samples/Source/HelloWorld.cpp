@@ -1,7 +1,14 @@
 #include <windows.h>
 #include <vector>
+#include <memory>
 #include <algorithm>
 #include "d3d11.h"
+#include <windowsx.h>
+#include <tchar.h>
+
+using namespace std;
+
+const wchar_t AppName[] = TEXT("DawnEngine");
 
 #pragma comment(lib, "dxgi.lib")
 HWND	GNativeWindow;
@@ -42,7 +49,7 @@ HWND CreateMyWindow(int width, int height, LPCWSTR name)
 	winclass.hCursor = LoadCursor(NULL, IDC_ARROW);
 	winclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
 	winclass.lpszMenuName = NULL;
-	winclass.lpszClassName = name;
+	winclass.lpszClassName = AppName;
 
 	if (!RegisterClass(&winclass))
 		return NULL;
@@ -52,7 +59,7 @@ HWND CreateMyWindow(int width, int height, LPCWSTR name)
 
 	DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
 	DWORD exstyle = 0;
-	HWND hwnd = CreateWindowEx(exstyle, name, name, style, 0, 0, width, height, NULL, NULL, winclass.hInstance, NULL);
+	HWND hwnd = CreateWindowEx(exstyle, AppName, AppName, style, 0, 0, width, height, NULL, NULL, winclass.hInstance, NULL);
 
 	ShowWindow(hwnd, SW_SHOWNORMAL);
 
@@ -64,7 +71,12 @@ bool InitRenderDevice()
 	if (GRenderDevice)
 		return true;
 
-	int flags = D3D11_CREATE_DEVICE_DEBUG;
+	int flags = 0;
+
+	#ifdef _DEBUG
+	flags |= D3D11_CREATE_DEVICE_DEBUG;
+	#endif
+
 	HRESULT result = CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&GDXGIFactory);
 
 	HRESULT HResult = S_OK;
@@ -124,10 +136,108 @@ bool CreateBackBuffer(HWND window, IDXGISwapChain*& swapchain, ID3D11RenderTarge
 	if (GRenderDevice->CreateRenderTargetView(buffer, nullptr, &rtv) != 0)
 		return false;
 
+	return true;
 }
 
-int main()
+class FWindow
 {
+public:
+	FWindow(HINSTANCE HInstance, int Width, int Height);
+
+	void ShowWindow();
+
+private:
+	HWND	Hwnd;
+};
+
+FWindow::FWindow(HINSTANCE HInstance, int Width, int Height)
+{
+	int cx = ::GetSystemMetrics(SM_CXSCREEN);
+	int cy = ::GetSystemMetrics(SM_CYSCREEN);
+
+	DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+	DWORD exstyle = 0;
+	Hwnd = CreateWindowEx(exstyle, TEXT("DawnEngine"), TEXT("DawnEngine"), style, 0, 0, Width, Height, NULL, NULL, HInstance, NULL);
+}
+
+void FWindow::ShowWindow()
+{
+}
+
+class FWindowApplication
+{
+public:
+	static void					CreateWindowsApplication(HINSTANCE hInstance);
+	static FWindowApplication&	Get();
+
+	shared_ptr<FWindow>			AddWindow(int width, int height);
+
+private:
+	static LRESULT CALLBACK	WindowProc(HWND Hwnd, UINT Msg, WPARAM WParam, LPARAM LParam);
+
+private:
+	static HINSTANCE						HInstance;
+	std::vector<std::shared_ptr< FWindow>>	Windows;
+};
+
+LRESULT CALLBACK FWindowApplication::WindowProc(HWND Hwnd, UINT Msg, WPARAM WParam, LPARAM LParam)
+{
+	if (Msg == WM_CLOSE)
+	{
+		PostQuitMessage(0);
+		GWindows.erase(find(GWindows.begin(), GWindows.end(), Hwnd));
+	}
+
+	return DefWindowProc(Hwnd, Msg, WParam, LParam);
+}
+
+HINSTANCE FWindowApplication::HInstance = nullptr;
+
+void FWindowApplication::CreateWindowsApplication(HINSTANCE HInstance)
+{
+	if (FWindowApplication::HInstance)
+		return;
+
+	FWindowApplication::HInstance = HInstance;
+
+	WNDCLASS winclass;
+
+	winclass.style = CS_BYTEALIGNCLIENT;
+	winclass.lpfnWndProc = WindowProc;
+	winclass.cbClsExtra = 0;
+	winclass.cbWndExtra = 0;
+	winclass.hInstance = HInstance;
+	winclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	winclass.hCursor = LoadCursor(NULL, IDC_ARROW);
+	winclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+	winclass.lpszMenuName = NULL;
+	winclass.lpszClassName = TEXT("DawnEngine");
+
+	if (!RegisterClass(&winclass))
+		return;
+}
+
+FWindowApplication& FWindowApplication::Get()
+{
+	static FWindowApplication windowapp;
+	return windowapp;
+}
+
+shared_ptr<FWindow> FWindowApplication::AddWindow(int Width, int Height)
+{
+	shared_ptr<FWindow> WindowPtr(new FWindow(HInstance, Width, Height));
+	Windows.push_back(WindowPtr);
+
+	return WindowPtr;
+}
+
+int WINAPI WinMain(HINSTANCE hInInstance, HINSTANCE hPrevInstance, char* lpCmdLine, int nShowCmd)
+{
+	// Preinit.
+
+	FWindowApplication::CreateWindowsApplication(hInInstance);
+	FWindowApplication::Get().AddWindow(900, 600);
+
 	GNativeWindow = CreateMyWindow(900, 600, L"Hello world");
 	InitRenderDevice();
 	CreateBackBuffer(GNativeWindow, GNativeSwapChain, GRTV1);
@@ -168,6 +278,5 @@ int main()
 	}
 
 	// TODO. ReleaseContext.
-
 	system("pause");
 }
