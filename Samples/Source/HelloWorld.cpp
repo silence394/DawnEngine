@@ -8,63 +8,15 @@
 
 using namespace std;
 
-const wchar_t AppName[] = TEXT("DawnEngine");
+const wchar_t* AppName = L"DawnEngine";
 
 #pragma comment(lib, "dxgi.lib")
-HWND	GNativeWindow;
-HWND	GWindow2;
 
 std::vector<HWND>	GWindows;
 
 IDXGIFactory1*			GDXGIFactory = nullptr;
 ID3D11Device*			GRenderDevice = nullptr;
-ID3D11DeviceContext*	gDeviceContext;
-
-IDXGISwapChain*			GNativeSwapChain;
-IDXGISwapChain*			GSwapChain2;
-ID3D11RenderTargetView*	GRTV1 = nullptr;
-ID3D11RenderTargetView*	GRTV2 = nullptr;
-
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
-{
-	if (msg == WM_CLOSE)
-	{
-		PostQuitMessage(0);
-		GWindows.erase(find(GWindows.begin(), GWindows.end(), hwnd));
-	}
-
-	return DefWindowProc(hwnd, msg, wparam, lparam);
-}
-
-HWND CreateMyWindow(int width, int height, LPCWSTR name)
-{
-	WNDCLASS winclass;
-
-	winclass.style = CS_BYTEALIGNCLIENT;
-	winclass.lpfnWndProc = WindowProc;
-	winclass.cbClsExtra = 0;
-	winclass.cbWndExtra = 0;
-	winclass.hInstance = GetModuleHandle(NULL);
-	winclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-	winclass.hCursor = LoadCursor(NULL, IDC_ARROW);
-	winclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-	winclass.lpszMenuName = NULL;
-	winclass.lpszClassName = AppName;
-
-	if (!RegisterClass(&winclass))
-		return NULL;
-
-	int cx = ::GetSystemMetrics(SM_CXSCREEN);
-	int cy = ::GetSystemMetrics(SM_CYSCREEN);
-
-	DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
-	DWORD exstyle = 0;
-	HWND hwnd = CreateWindowEx(exstyle, AppName, AppName, style, 0, 0, width, height, NULL, NULL, winclass.hInstance, NULL);
-
-	ShowWindow(hwnd, SW_SHOWNORMAL);
-
-	return hwnd;
-}
+ID3D11DeviceContext*	gDeviceContext = nullptr;
 
 bool InitRenderDevice()
 {
@@ -108,11 +60,33 @@ bool InitRenderDevice()
 	return true;
 }
 
-bool CreateBackBuffer(HWND window, IDXGISwapChain*& swapchain, ID3D11RenderTargetView*& rtv)
+class FViewport
 {
-	// Create Swap Chain.
+public:
+	FViewport(HWND Hwnd);
+
+	ID3D11RenderTargetView*	GetBackBufferView() const
+	{
+		return BackSRV;
+	}
+
+	void	Present();
+
+private:
+	IDXGISwapChain*			SwapChain;
+	ID3D11Texture2D*		BackBuffer;
+	ID3D11RenderTargetView*	BackSRV;
+};
+
+void FViewport::Present()
+{
+	SwapChain->Present(0, 0);
+}
+
+FViewport::FViewport(HWND Hwnd)
+{
 	RECT rect;
-	::GetClientRect(window, &rect);
+	::GetClientRect(Hwnd, &rect);
 	DXGI_SWAP_CHAIN_DESC sd = { 0 };
 	sd.BufferCount = 1;
 	sd.BufferDesc.Width = rect.right - rect.left;
@@ -121,22 +95,19 @@ bool CreateBackBuffer(HWND window, IDXGISwapChain*& swapchain, ID3D11RenderTarge
 	sd.BufferDesc.RefreshRate.Denominator = 0;
 	sd.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.OutputWindow = (HWND)window;
+	sd.OutputWindow = Hwnd;
 	sd.SampleDesc.Count = 1;
 	sd.SampleDesc.Quality = 0;
 	sd.Windowed = true;
 
-	if (GDXGIFactory->CreateSwapChain(GRenderDevice, &sd, (IDXGISwapChain**)&swapchain) != 0)
-		return false;
+	if (GDXGIFactory->CreateSwapChain(GRenderDevice, &sd, (IDXGISwapChain**)&SwapChain) != 0)
+		return;
 
-	ID3D11Texture2D* buffer = nullptr;
-	if (swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&buffer) != 0)
-		return false;
+	if (SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&BackBuffer) != 0)
+		return;
 
-	if (GRenderDevice->CreateRenderTargetView(buffer, nullptr, &rtv) != 0)
-		return false;
-
-	return true;
+	if (GRenderDevice->CreateRenderTargetView(BackBuffer, nullptr, &BackSRV) != 0)
+		return;
 }
 
 class FWindow
@@ -144,10 +115,14 @@ class FWindow
 public:
 	FWindow(HINSTANCE HInstance, int Width, int Height);
 
-	void ShowWindow();
+	void	ShowWindow();
+
+	void	Draw();
 
 private:
-	HWND	Hwnd;
+	HWND					Hwnd;
+
+	shared_ptr<FViewport>	Viewport;
 };
 
 FWindow::FWindow(HINSTANCE HInstance, int Width, int Height)
@@ -157,11 +132,26 @@ FWindow::FWindow(HINSTANCE HInstance, int Width, int Height)
 
 	DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
 	DWORD exstyle = 0;
-	Hwnd = CreateWindowEx(exstyle, TEXT("DawnEngine"), TEXT("DawnEngine"), style, 0, 0, Width, Height, NULL, NULL, HInstance, NULL);
+	Hwnd = CreateWindowEx(exstyle, AppName, AppName, style, 0, 0, Width, Height, NULL, NULL, HInstance, NULL);
 }
 
 void FWindow::ShowWindow()
 {
+	::ShowWindow(Hwnd, SW_SHOWNORMAL);
+
+	if (Viewport == nullptr)
+		Viewport = make_shared<FViewport>(Hwnd);
+}
+
+void FWindow::Draw()
+{
+	if (Viewport == nullptr)
+		return;
+
+	float color[4] = { 0.3f, 0.3f, 1.0f, 1.0f };
+	gDeviceContext->ClearRenderTargetView(Viewport->GetBackBufferView(), color);
+
+	Viewport->Present();
 }
 
 class FWindowApplication
@@ -172,12 +162,14 @@ public:
 
 	shared_ptr<FWindow>			AddWindow(int width, int height);
 
+	void						Tick();
+
 private:
 	static LRESULT CALLBACK	WindowProc(HWND Hwnd, UINT Msg, WPARAM WParam, LPARAM LParam);
 
 private:
 	static HINSTANCE						HInstance;
-	std::vector<std::shared_ptr< FWindow>>	Windows;
+	std::vector<std::shared_ptr<FWindow>>	Windows;
 };
 
 LRESULT CALLBACK FWindowApplication::WindowProc(HWND Hwnd, UINT Msg, WPARAM WParam, LPARAM LParam)
@@ -189,6 +181,16 @@ LRESULT CALLBACK FWindowApplication::WindowProc(HWND Hwnd, UINT Msg, WPARAM WPar
 	}
 
 	return DefWindowProc(Hwnd, Msg, WParam, LParam);
+}
+
+void FWindowApplication::Tick()
+{
+	std::vector<std::shared_ptr<FWindow>>::iterator it = Windows.begin();
+	while (it != Windows.end())
+	{
+		(*it)->Draw();
+		it++;
+	}
 }
 
 HINSTANCE FWindowApplication::HInstance = nullptr;
@@ -228,25 +230,17 @@ shared_ptr<FWindow> FWindowApplication::AddWindow(int Width, int Height)
 	shared_ptr<FWindow> WindowPtr(new FWindow(HInstance, Width, Height));
 	Windows.push_back(WindowPtr);
 
+	WindowPtr->ShowWindow();
+
 	return WindowPtr;
 }
 
 int WINAPI WinMain(HINSTANCE hInInstance, HINSTANCE hPrevInstance, char* lpCmdLine, int nShowCmd)
 {
 	// Preinit.
-
+	InitRenderDevice();
 	FWindowApplication::CreateWindowsApplication(hInInstance);
 	FWindowApplication::Get().AddWindow(900, 600);
-
-	GNativeWindow = CreateMyWindow(900, 600, L"Hello world");
-	InitRenderDevice();
-	CreateBackBuffer(GNativeWindow, GNativeSwapChain, GRTV1);
-
-	GWindow2 = CreateMyWindow(400, 300, L"Window2");
-	CreateBackBuffer(GWindow2, GSwapChain2, GRTV2);
-
-	GWindows.push_back(GNativeWindow);
-	GWindows.push_back(GWindow2);
 
 	MSG msg = { 0 };
 	while (true)
@@ -264,14 +258,7 @@ int WINAPI WinMain(HINSTANCE hInInstance, HINSTANCE hPrevInstance, char* lpCmdLi
 		}
 		else
 		{
-			float color[4] = { 0.3f, 0.3f, 1.0f, 1.0f };
-			gDeviceContext->ClearRenderTargetView(GRTV1, color);
-			GNativeSwapChain->Present(0, 0);
-
-			color[0] = 1.0f;
-			color[2] = 0.3f;
-			gDeviceContext->ClearRenderTargetView(GRTV2, color);
-			GSwapChain2->Present(0, 0);
+			FWindowApplication::Get().Tick();
 
 			Sleep(30);
 		}
