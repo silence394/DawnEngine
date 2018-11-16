@@ -1,5 +1,4 @@
 #include "D3D11RHI.h"
-#include "d3d11.h"
 
 FD3D11DynamicRHI::FD3D11DynamicRHI()
 {

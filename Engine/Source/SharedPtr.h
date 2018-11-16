@@ -7,4 +7,9 @@ class TSharedPtr : public std::shared_ptr<T>
 {
 public:
 	TSharedPtr() {}
+
+	operator T*() const
+	{
+		return std::shared_ptr<T>::get();
+	}
 };

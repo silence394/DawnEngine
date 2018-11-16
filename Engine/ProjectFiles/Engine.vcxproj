@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="..\Source\D3D11RHI.h" />
     <ClInclude Include="..\Source\DrawEngine.h" />
+    <ClInclude Include="..\Source\EngineBase.h" />
     <ClInclude Include="..\Source\GlobalDefines.h" />
     <ClInclude Include="..\Source\RHIInterface.h" />
     <ClInclude Include="..\Source\SharedPtr.h" />
