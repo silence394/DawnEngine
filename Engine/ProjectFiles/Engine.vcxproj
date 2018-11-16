@@ -21,7 +21,9 @@
   <ItemGroup>
     <ClInclude Include="..\Source\D3D11RHI.h" />
     <ClInclude Include="..\Source\DrawEngine.h" />
+    <ClInclude Include="..\Source\GlobalDefines.h" />
     <ClInclude Include="..\Source\RHIInterface.h" />
+    <ClInclude Include="..\Source\SharedPtr.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Source\D3D11RHI.cpp" />
@@ -99,11 +101,16 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>../../ThirdParty/DirectX/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>dxgi.lib;d3d11.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../../ThirdParty/DirectX/Lib/x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
