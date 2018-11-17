@@ -1,8 +1,8 @@
 #pragma once
 
 #include "EngineBase.h"
-#include "RHIInterface.h"
 #include "d3d11.h"
+#include "DynamicRHI.h"
 
 class FD3D11DynamicRHI : public IDynamicRHI
 {
@@ -19,8 +19,10 @@ public:
 		return D3DContext;
 	}
 
+	virtual std::shared_ptr<class FRHIViewport> RHICreateViewport(void* WindowHandle, bool FullScreen);
+
 private:
-	TSharedPtr<IDXGIFactory1>		DXGIFactory;
-	TSharedPtr<ID3D11Device>		D3DDevice;
-	TSharedPtr<ID3D11DeviceContext>	D3DContext;
+	IDXGIFactory1*			DXGIFactory = nullptr;
+	ID3D11Device*			D3DDevice = nullptr;
+	ID3D11DeviceContext*	D3DContext = nullptr;
 };

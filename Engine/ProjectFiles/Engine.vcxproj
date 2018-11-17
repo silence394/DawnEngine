@@ -19,15 +19,23 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Source\Application.h" />
     <ClInclude Include="..\Source\D3D11RHI.h" />
+    <ClInclude Include="..\Source\D3D11Viewport.h" />
     <ClInclude Include="..\Source\DrawEngine.h" />
+    <ClInclude Include="..\Source\DynamicRHI.h" />
     <ClInclude Include="..\Source\EngineBase.h" />
     <ClInclude Include="..\Source\GlobalDefines.h" />
-    <ClInclude Include="..\Source\RHIInterface.h" />
-    <ClInclude Include="..\Source\SharedPtr.h" />
+    <ClInclude Include="..\Source\RHIResource.h" />
+    <ClInclude Include="..\Source\Window.h" />
+    <ClInclude Include="..\Source\WindowsWindow.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Source\Appliation.cpp" />
     <ClCompile Include="..\Source\D3D11RHI.cpp" />
+    <ClCompile Include="..\Source\D3D11Viewport.cpp" />
+    <ClCompile Include="..\Source\DynamicRHI.cpp" />
+    <ClCompile Include="..\Source\WindowsWindow.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

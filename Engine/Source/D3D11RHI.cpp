@@ -1,4 +1,5 @@
 #include "D3D11RHI.h"
+#include "D3D11Viewport.h"
 
 FD3D11DynamicRHI::FD3D11DynamicRHI()
 {
@@ -8,12 +9,10 @@ FD3D11DynamicRHI::FD3D11DynamicRHI()
 	flags |= D3D11_CREATE_DEVICE_DEBUG;
 	#endif
 
-	IDXGIFactory1* Factory = DXGIFactory.get();
-
-	CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&Factory);
+	CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&DXGIFactory);
 
 	IDXGIAdapter* Adapter;
-	Factory->EnumAdapters(0, &Adapter);
+	DXGIFactory->EnumAdapters(0, &Adapter);
 
 	DXGI_ADAPTER_DESC AdapterDesc;
 	if (FAILED(Adapter->GetDesc(&AdapterDesc)))
@@ -21,9 +20,6 @@ FD3D11DynamicRHI::FD3D11DynamicRHI()
 
 	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 	D3D_FEATURE_LEVEL ActualFeatureLevel = (D3D_FEATURE_LEVEL)0;
-
-	ID3D11Device* Device = D3DDevice.get();
-	ID3D11DeviceContext* context = D3DContext.get();
 
 	D3D11CreateDevice(
 		Adapter,
@@ -33,8 +29,13 @@ FD3D11DynamicRHI::FD3D11DynamicRHI()
 		&FeatureLevel,
 		1,
 		D3D11_SDK_VERSION,
-		&Device,
+		&D3DDevice,
 		&ActualFeatureLevel,
-		&context
+		&D3DContext
 	);
+}
+
+std::shared_ptr<FRHIViewport> FD3D11DynamicRHI::RHICreateViewport(void* WindowHandle, bool FullScreen)
+{
+	return std::make_shared<FRHIViewport>(FD3D11Viewport(this, WindowHandle, FullScreen));
 }
