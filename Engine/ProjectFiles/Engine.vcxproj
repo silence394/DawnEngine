@@ -42,7 +42,7 @@
     <ProjectGuid>{EADB075F-7A01-4007-9474-144160DBC697}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>DrawEngine</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
