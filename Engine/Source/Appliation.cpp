@@ -26,7 +26,7 @@ FApplication::FApplication(HINSTANCE InHIstance)
 	winclass.hCursor = LoadCursor(NULL, IDC_ARROW);
 	winclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
 	winclass.lpszMenuName = NULL;
-	winclass.lpszClassName = TEXT("DawnEngine");
+	winclass.lpszClassName = FWindowsWindow::ApplicatioName;
 
 	if (!RegisterClass(&winclass))
 		std::cout << "Register window class failed" << std::endl;

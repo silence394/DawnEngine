@@ -9,7 +9,7 @@ public:
 	virtual void Tick();
 	virtual void Show();
 
-	//static const wchar_t AppWindowClass[];
+	const static wchar_t*	ApplicatioName;
 
 private:
 	HWND							Hwnd;
